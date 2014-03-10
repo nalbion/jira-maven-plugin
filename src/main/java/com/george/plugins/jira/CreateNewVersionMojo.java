@@ -1,12 +1,13 @@
 package com.george.plugins.jira;
 
 import java.util.Comparator;
+import java.util.List;
 
 import org.apache.maven.plugin.logging.Log;
 import org.codehaus.plexus.util.StringUtils;
 
-import com.atlassian.jira.rpc.soap.client.JiraSoapService;
-import com.atlassian.jira.rpc.soap.client.RemoteVersion;
+import com.george.plugins.jira.api.JiraApi;
+import com.george.plugins.jira.api.JiraVersion;
 
 /**
  * Goal that creates a version in a JIRA project . NOTE: SOAP access must be
@@ -46,15 +47,13 @@ public class CreateNewVersionMojo extends AbstractJiraMojo {
 	 * @parameter 
 	 *            implementation="com.george.plugins.jira.RemoteVersionComparator"
 	 */
-	Comparator<RemoteVersion> remoteVersionComparator = new RemoteVersionComparator();
+	Comparator<JiraVersion> remoteVersionComparator = new RemoteVersionComparator();
 
 	@Override
-	public void doExecute(JiraSoapService jiraService, String loginToken)
-			throws Exception {
+	public void doExecute(JiraApi jiraApi, String loginToken) throws Exception {
 		Log log = getLog();
 		log.debug("Login Token returned: " + loginToken);
-		RemoteVersion[] versions = jiraService.getVersions(loginToken,
-				jiraProjectKey);
+		List<JiraVersion> versions = jiraApi.getVersions(loginToken, jiraProjectKey);
 		String newDevVersion;
 		if (finalNameUsedForVersion) {
 			newDevVersion = finalName;
@@ -66,10 +65,8 @@ public class CreateNewVersionMojo extends AbstractJiraMojo {
 				"-SNAPSHOT", "").replace("-", " "));
 		boolean versionExists = isVersionAlreadyPresent(versions, newDevVersion);
 		if (!versionExists) {
-			RemoteVersion newVersion = new RemoteVersion();
 			log.debug("New Development version in JIRA is: " + newDevVersion);
-			newVersion.setName(newDevVersion);
-			jiraService.addVersion(loginToken, jiraProjectKey, newVersion);
+			jiraApi.addVersion(loginToken, jiraProjectKey, newDevVersion);
 			log.info("Version created in JIRA for project key "
 					+ jiraProjectKey + " : " + newDevVersion);
 		} else {
@@ -86,12 +83,11 @@ public class CreateNewVersionMojo extends AbstractJiraMojo {
 	 * @param newDevVersion
 	 * @return
 	 */
-	boolean isVersionAlreadyPresent(RemoteVersion[] versions,
-			String newDevVersion) {
+	boolean isVersionAlreadyPresent( List<JiraVersion> versions, String newDevVersion ) {
 		boolean versionExists = false;
 		if (versions != null) {
 			// Creating new Version (if not already created)
-			for (RemoteVersion remoteVersion : versions) {
+			for (JiraVersion remoteVersion : versions) {
 				if (remoteVersion.getName().equalsIgnoreCase(newDevVersion)) {
 					versionExists = true;
 					break;

@@ -3,14 +3,14 @@ package com.george.plugins.jira;
 import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Comparator;
+import java.util.List;
 
 import org.apache.maven.plugin.logging.Log;
 
-import com.atlassian.jira.rpc.soap.client.JiraSoapService;
-import com.atlassian.jira.rpc.soap.client.RemoteAuthenticationException;
-import com.atlassian.jira.rpc.soap.client.RemotePermissionException;
-import com.atlassian.jira.rpc.soap.client.RemoteVersion;
+import com.george.plugins.jira.api.JiraApi;
+import com.george.plugins.jira.api.JiraVersion;
 
 /**
  * Goal that creates a version in a JIRA project . NOTE: SOAP access must be
@@ -42,23 +42,23 @@ public class ReleaseVersionMojo extends AbstractJiraMojo {
 	 * Comparator for discovering the latest release
 	 * 
 	 * @parameter 
-	 *            implementation="com.george.plugins.jira.RemoteVersionComparator"
+	 *            implementation="com.george.plugins.jira.StringComparator"
 	 */
-	Comparator<RemoteVersion> remoteVersionComparator = new RemoteVersionComparator();
+	Comparator<JiraVersion> remoteVersionComparator = new RemoteVersionComparator();
 
 	@Override
-	public void doExecute(JiraSoapService jiraService, String loginToken)
+	public void doExecute(JiraApi jiraApi, String loginToken)
 			throws Exception {
 		Log log = getLog();
 		log.debug("Login Token returned: " + loginToken);
-		RemoteVersion[] versions = jiraService.getVersions(loginToken,
+		List<JiraVersion> versions = jiraApi.getVersions(loginToken,
 				jiraProjectKey);
 		String thisReleaseVersion = (autoDiscoverLatestRelease)
 				? calculateLatestReleaseVersion(versions)
 				: releaseVersion;
 		if (thisReleaseVersion != null) {
 			log.info("Releasing Version " + this.releaseVersion);
-			markVersionAsReleased(jiraService, loginToken, versions,
+			markVersionAsReleased(jiraApi, loginToken, versions,
 					thisReleaseVersion);
 		}
 	}
@@ -69,10 +69,10 @@ public class ReleaseVersionMojo extends AbstractJiraMojo {
 	 * @param versions
 	 * @return
 	 */
-	String calculateLatestReleaseVersion(RemoteVersion[] versions) {
-		Arrays.sort(versions, remoteVersionComparator);
+	String calculateLatestReleaseVersion(List<JiraVersion> versions) {
+		Collections.sort(versions, remoteVersionComparator);
 
-		for (RemoteVersion remoteVersion : versions) {
+		for (JiraVersion remoteVersion : versions) {
 			if (!remoteVersion.isReleased())
 				return remoteVersion.getName();
 		}
@@ -86,12 +86,12 @@ public class ReleaseVersionMojo extends AbstractJiraMojo {
 	 * @param newDevVersion
 	 * @return
 	 */
-	boolean isVersionAlreadyPresent(RemoteVersion[] versions,
+	boolean isVersionAlreadyPresent(List<JiraVersion> versions,
 			String newDevVersion) {
 		boolean versionExists = false;
 		if (versions != null) {
 			// Creating new Version (if not already created)
-			for (RemoteVersion remoteVersion : versions) {
+			for (JiraVersion remoteVersion : versions) {
 				if (remoteVersion.getName().equalsIgnoreCase(newDevVersion)) {
 					versionExists = true;
 					break;
@@ -106,28 +106,26 @@ public class ReleaseVersionMojo extends AbstractJiraMojo {
 	 * Release Version
 	 * 
 	 * @param log
-	 * @param jiraService
+	 * @param jiraApi
 	 * @param loginToken
 	 * @throws RemoteException
 	 * @throws RemotePermissionException
 	 * @throws RemoteAuthenticationException
 	 * @throws com.atlassian.jira.rpc.soap.client.RemoteException
 	 */
-	RemoteVersion markVersionAsReleased(JiraSoapService jiraService,
-			String loginToken, RemoteVersion[] versions, String releaseVersion)
-			throws RemoteException, RemotePermissionException,
-			RemoteAuthenticationException,
-			com.atlassian.jira.rpc.soap.client.RemoteException {
-		RemoteVersion ret = null;
+	JiraVersion markVersionAsReleased(JiraApi jiraApi,
+			String loginToken, List<JiraVersion> versions, String releaseVersion)
+			throws RemoteException {
+		JiraVersion ret = null;
 		if (versions != null) {
-			for (RemoteVersion remoteReleasedVersion : versions) {
+			for (JiraVersion remoteReleasedVersion : versions) {
 				if (releaseVersion.equalsIgnoreCase(remoteReleasedVersion
 						.getName()) && !remoteReleasedVersion.isReleased()) {
 					// Mark as released
 					remoteReleasedVersion.setReleased(true);
 					remoteReleasedVersion
 							.setReleaseDate(Calendar.getInstance());
-					jiraService.releaseVersion(loginToken, jiraProjectKey,
+					jiraApi.releaseVersion(loginToken, jiraProjectKey,
 							remoteReleasedVersion);
 					getLog().info(
 							"Version " + remoteReleasedVersion.getName()
