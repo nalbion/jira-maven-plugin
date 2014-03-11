@@ -1,6 +1,9 @@
 package com.george.plugins.jira;
 
+import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+
+import javax.xml.rpc.ServiceException;
 
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -12,6 +15,7 @@ import org.apache.maven.settings.Settings;
 import com.george.plugins.jira.api.JiraApi;
 import com.george.plugins.jira.api.JiraRestApi;
 //import com.george.plugins.jira.api.JiraSoapApi;
+import com.george.plugins.jira.api.JiraSoapApi;
 
 
 /**
@@ -106,12 +110,17 @@ public abstract class AbstractJiraMojo extends AbstractMojo {
 		}
 	}
 	
-	protected JiraApi initialiseJiraApi() throws URISyntaxException {
-//		if( "SOAP".equals(apiType) ) {
-//			jiraApi = new JiraSoapApi( jiraURL );
-//		} else {
+	protected JiraApi initialiseJiraApi() throws URISyntaxException, MalformedURLException, ServiceException {
+		if( "SOAP".equals(apiType) ) {
+			jiraApi = new JiraSoapApi( jiraURL );
+		} else {
 			jiraApi = new JiraRestApi( jiraURL );
-//		}
+		}
+		
+		if( jiraProjectKey == null ) {
+			jiraProjectKey = jiraApi.getProjectKey();
+		}
+		
 		return jiraApi;
 	}
 

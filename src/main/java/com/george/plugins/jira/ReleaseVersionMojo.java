@@ -1,15 +1,19 @@
 package com.george.plugins.jira;
 
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import java.rmi.RemoteException;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+import javax.xml.rpc.ServiceException;
+
 import org.apache.maven.plugin.logging.Log;
 
 import com.george.plugins.jira.api.JiraApi;
+import com.george.plugins.jira.api.JiraSoapApi;
 import com.george.plugins.jira.api.JiraVersion;
 
 /**
@@ -45,6 +49,13 @@ public class ReleaseVersionMojo extends AbstractJiraMojo {
 	 *            implementation="com.george.plugins.jira.StringComparator"
 	 */
 	Comparator<JiraVersion> remoteVersionComparator = new RemoteVersionComparator();
+	
+	
+	protected JiraApi initialiseJiraApi() throws URISyntaxException, MalformedURLException, ServiceException {
+		// releaseVersion() is not yet implemented in JiraRestApi
+		jiraApi = new JiraSoapApi( jiraURL );
+		return jiraApi;
+	}
 
 	@Override
 	public void doExecute(JiraApi jiraApi, String loginToken)

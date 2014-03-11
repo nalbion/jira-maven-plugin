@@ -3,8 +3,6 @@ package com.george.plugins.jira.bdd;
 import java.util.LinkedList;
 import java.util.List;
 
-import com.atlassian.jira.rest.client.api.domain.BasicComponent;
-import com.atlassian.jira.rest.client.api.domain.Issue;
 import com.george.plugins.jira.api.JiraIssue;
 
 public abstract class Taggable {

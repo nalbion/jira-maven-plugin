@@ -1,16 +1,21 @@
 package com.george.plugins.jira;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
+import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
+import javax.xml.rpc.ServiceException;
+
 import org.codehaus.plexus.util.StringUtils;
 
 import com.atlassian.jira.rest.client.api.domain.Issue;
-import com.atlassian.jira.rest.client.api.domain.IssueField;
 import com.george.plugins.jira.api.JiraApi;
 import com.george.plugins.jira.api.JiraIssue;
+import com.george.plugins.jira.api.JiraRestApi;
 import com.george.plugins.jira.bdd.Feature;
 import com.george.plugins.jira.bdd.Scenario;
 
@@ -77,6 +82,11 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	private String scenarioFieldName;
 	
 	
+	protected JiraApi initialiseJiraApi() throws URISyntaxException, MalformedURLException, ServiceException {
+		jiraApi = new JiraRestApi( jiraURL );
+		return jiraApi;
+	}
+	
 	/**
 	 * Get all of the Epics and Stories that match <code>labels</code> <em>AND</em> <code>components</code>.
 	 * If either of these parameters are null they are ignored.  
@@ -87,7 +97,7 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 		StringBuilder fieldNames = new StringBuilder("issuetype,created,updated,project," +	// These fields are required by the JSON parser
 													"summary,labels,components,issuelinks,parent,subtasks,status,resolution,reporter,assignee");
 		if( customFields != null ) {
-			HashMap<String, String> fieldIdsByName = jiraApi.getFieldsByName();
+			HashMap<String, String> fieldIdsByName = jiraApi.getFieldIdsByName(loginToken);
 			for( String customFieldName : customFields.split(",") ) {
 				appendCustomField( customFieldName, fieldNames, fieldIdsByName );
 			}
@@ -148,8 +158,6 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	 * @return
 	 */
 	private Feature parseFeatureFromIssue( JiraIssue issue ) {
-		IssueField field;
-		
 		if( featureFileUrlFieldName != null ) {
 			String storyFileUrl = issue.getFieldByName(featureFileUrlFieldName);
 			if( storyFileUrl != null && !storyFileUrl.isEmpty() ) {
@@ -211,8 +219,9 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	 * @param components - null, a single component name or a comma delimited list
 	 * @param fieldNames - null, "*all" or a comma delimited list
 	 * @return
+	 * @throws RemoteException 
 	 */
-	private List<JiraIssue> getIssues( String loginToken, String issueType, String labels, String components, String fieldNames ) {
+	private List<JiraIssue> getIssues( String loginToken, String issueType, String labels, String components, String fieldNames ) throws RemoteException {
 		StringBuilder jql = new StringBuilder("project=").append(jiraProjectKey);
 		appendJqlFieldFilter( jql, "issuetype", issueType );
 		appendJqlFieldFilter( jql, "labels", labels );

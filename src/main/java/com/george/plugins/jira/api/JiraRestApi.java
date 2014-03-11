@@ -13,7 +13,6 @@ import org.codehaus.jettison.json.JSONObject;
 import org.joda.time.DateTime;
 
 import com.atlassian.jira.rest.client.api.JiraRestClient;
-import com.atlassian.jira.rest.client.api.VersionRestClient;
 import com.atlassian.jira.rest.client.api.domain.BasicComponent;
 import com.atlassian.jira.rest.client.api.domain.Field;
 import com.atlassian.jira.rest.client.api.domain.Issue;
@@ -24,8 +23,11 @@ import com.atlassian.jira.rest.client.api.domain.Version;
 import com.atlassian.jira.rest.client.api.domain.input.VersionInput;
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory;
 
-public class JiraRestApi extends JiraApi {
-	
+/**
+ * Note: The JIRA team has made the conscious decision to stop investing in SOAP. All their efforts will be with REST.
+ */
+public class JiraRestApi implements JiraApi {
+	private String jiraProjectKey;
 	private JiraRestClient restClient;
 	private URI jiraServerUri;
 	
@@ -51,6 +53,11 @@ public class JiraRestApi extends JiraApi {
 	}
 	
 	@Override
+	public String getProjectKey() {
+		return jiraProjectKey;
+	}
+	
+	@Override
 	public String login( String jiraUser, String jiraPassword ) {
 		final AsynchronousJiraRestClientFactory factory = new AsynchronousJiraRestClientFactory();
 		restClient = factory.createWithBasicHttpAuthentication(jiraServerUri, jiraUser, jiraPassword);
@@ -58,12 +65,13 @@ public class JiraRestApi extends JiraApi {
 	}
 
 	@Override
-	public void logout( String loginToken ) throws Exception {
+	public boolean logout( String loginToken ) throws Exception {
 		restClient.destroy();
+		return true;
 	}
 	
 	@Override
-	public HashMap<String, String> getFieldsByName() {
+	public HashMap<String, String> getFieldIdsByName( String loginToken ) {
 		HashMap<String, String> customFieldIdsByName = new HashMap<String, String>();
 		Iterable<Field> jiraFields = restClient.getMetadataClient().getFields().claim();
 		for( Field field : jiraFields ) {
@@ -91,13 +99,15 @@ public class JiraRestApi extends JiraApi {
 	}
 	
 	@Override
-	public void addVersion( String loginToken, String jiraProjectKey, String newDevVersion ) {
-		restClient.getVersionRestClient().createVersion( new VersionInput(jiraProjectKey, newDevVersion, null, null, false, false) );
+	public JiraVersion addVersion( String loginToken, String jiraProjectKey, String newVersion ) {
+		restClient.getVersionRestClient().createVersion( new VersionInput(jiraProjectKey, newVersion, null, null, false, false) );
+		JiraVersion jiraVersion = new JiraVersion(newVersion);
+		return jiraVersion;
 	}
 
 	@Override
 	public void releaseVersion(String loginToken, String jiraProjectKey, JiraVersion remoteReleasedVersion) {
-		VersionRestClient versionClient = restClient.getVersionRestClient();
+//		VersionRestClient versionClient = restClient.getVersionRestClient();
 //		versionClient.
 		throw new RuntimeException("releaseVersion has not yet been implemented for the REST API");
 	}

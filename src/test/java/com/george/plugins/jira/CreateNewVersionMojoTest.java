@@ -7,15 +7,18 @@ import static org.easymock.EasyMock.expect;
 import static org.easymock.EasyMock.replay;
 
 import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.easymock.EasyMock;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.atlassian.jira.rpc.soap.client.JiraSoapService;
-import com.atlassian.jira.rpc.soap.client.RemoteAuthenticationException;
-import com.atlassian.jira.rpc.soap.client.RemoteVersion;
+import com.george.plugins.jira.api.JiraApi;
+import com.george.plugins.jira.api.JiraSoapApi;
+import com.george.plugins.jira.api.JiraVersion;
+
 
 /**
  * JUnit test case for Jira version MOJO
@@ -26,14 +29,17 @@ import com.atlassian.jira.rpc.soap.client.RemoteVersion;
 public class CreateNewVersionMojoTest {
 
 	private static final String LOGIN_TOKEN = "TEST_TOKEN";
-	private static final RemoteVersion[] VERSIONS = new RemoteVersion[]{
-			new RemoteVersion("1", "1.0", false, null, false, null),
-			new RemoteVersion("2", "2.0", false, null, false, null),
-			new RemoteVersion("3", "3.0", false, null, false, null),
-			new RemoteVersion("3", "3.1", false, null, false, null)};
+	private static final List<JiraVersion> VERSIONS = new ArrayList<JiraVersion>();
+	
+	static {
+		VERSIONS.add( new JiraVersion("1.0", false, null) );
+		VERSIONS.add( new JiraVersion("2.0", false, null) );
+		VERSIONS.add( new JiraVersion("3.0", false, null) );
+		VERSIONS.add( new JiraVersion("3.1", false, null) );
+	}
 
 	private CreateNewVersionMojo jiraVersionMojo;
-	private JiraSoapService jiraStub;
+	private JiraApi jiraStub;
 
 	/**
 	 * @throws java.lang.Exception
@@ -45,8 +51,8 @@ public class CreateNewVersionMojoTest {
 		jiraVersionMojo.jiraPassword = "password";
 
 		// This removes the locator coupling
-		jiraStub = EasyMock.createStrictMock(JiraSoapService.class);
-		this.jiraVersionMojo.jiraService = jiraStub;
+		jiraStub = EasyMock.createStrictMock(JiraApi.class);
+		this.jiraVersionMojo.jiraApi = jiraStub;
 	}
 
 	/**
@@ -67,9 +73,9 @@ public class CreateNewVersionMojoTest {
 		// Adiciona a nova versao
 		expect(
 				jiraStub.addVersion(LOGIN_TOKEN,
-						jiraVersionMojo.jiraProjectKey, new RemoteVersion(null,
-								jiraVersionMojo.developmentVersion, false,
-								null, false, null))).andReturn(VERSIONS[0]);
+									jiraVersionMojo.jiraProjectKey, 
+									jiraVersionMojo.developmentVersion))
+						.andReturn(VERSIONS.get(0));
 		doLogoutBehavior();
 		// Habilita o controle para inicio dos testes
 		EasyMock.replay(jiraStub);
@@ -91,9 +97,8 @@ public class CreateNewVersionMojoTest {
 		// Adiciona a nova versao
 		expect(
 				jiraStub.addVersion(LOGIN_TOKEN,
-						jiraVersionMojo.jiraProjectKey, new RemoteVersion(null,
-								"5.0 Beta 2", false, null, false, null)))
-				.andReturn(VERSIONS[0]);
+						jiraVersionMojo.jiraProjectKey, "5.0 Beta 2"))
+				.andReturn(VERSIONS.get(0));
 		doLogoutBehavior();
 		// Habilita o controle para inicio dos testes
 		EasyMock.replay(jiraStub);
@@ -117,9 +122,9 @@ public class CreateNewVersionMojoTest {
 		// Adiciona a nova versao
 		expect(
 				jiraStub.addVersion(LOGIN_TOKEN,
-						jiraVersionMojo.jiraProjectKey, new RemoteVersion(null,
-								"My Component 5.0 Beta 2", false, null, false,
-								null))).andReturn(VERSIONS[0]);
+							jiraVersionMojo.jiraProjectKey, 
+							"My Component 5.0 Beta 2")).
+						andReturn(VERSIONS.get(0));
 		doLogoutBehavior();
 		// Habilita o controle para inicio dos testes
 		EasyMock.replay(jiraStub);
@@ -154,16 +159,14 @@ public class CreateNewVersionMojoTest {
 	 * 
 	 * @throws RemoteException
 	 */
-	private void doLogoutBehavior() throws RemoteException {
+	private void doLogoutBehavior() throws Exception {
 		expect(jiraStub.logout(LOGIN_TOKEN)).andReturn(Boolean.TRUE).once();
 	}
 
 	/**
 	 * Set up login mock behavior
 	 */
-	private void doLoginBehavior() throws RemoteException,
-			RemoteAuthenticationException,
-			com.atlassian.jira.rpc.soap.client.RemoteException {
+	private void doLoginBehavior() throws RemoteException {
 		expect(jiraStub.login("user", "password")).andReturn(LOGIN_TOKEN)
 				.once();
 	}
