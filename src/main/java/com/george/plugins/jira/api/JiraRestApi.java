@@ -50,6 +50,7 @@ public class JiraRestApi implements JiraApi {
 			slash = jiraUrl.indexOf('/', slash + 2);
 		}
 		jiraServerUri = new URI( jiraUrl.substring(0, slash) );
+		System.out.println("JIRA Server URI: " + jiraServerUri + ", project key: " + jiraProjectKey);
 	}
 	
 	@Override

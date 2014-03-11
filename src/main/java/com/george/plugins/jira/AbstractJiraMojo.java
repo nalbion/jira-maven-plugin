@@ -111,14 +111,10 @@ public abstract class AbstractJiraMojo extends AbstractMojo {
 	}
 	
 	protected JiraApi initialiseJiraApi() throws URISyntaxException, MalformedURLException, ServiceException {
-		if( "SOAP".equals(apiType) ) {
+		if( "SOAP".equals(apiType) ) {			
 			jiraApi = new JiraSoapApi( jiraURL );
 		} else {
 			jiraApi = new JiraRestApi( jiraURL );
-		}
-		
-		if( jiraProjectKey == null ) {
-			jiraProjectKey = jiraApi.getProjectKey();
 		}
 		
 		return jiraApi;
@@ -134,10 +130,15 @@ public abstract class AbstractJiraMojo extends AbstractMojo {
 		}
 		try {
 			jiraApi = initialiseJiraApi();
+			log.debug("Using " + jiraApi.getClass().getSimpleName());
+			if( jiraProjectKey == null ) {
+				jiraProjectKey = jiraApi.getProjectKey();
+			}
+			
 			loadUserInfoFromSettings();
-			log.debug("Logging in JIRA");
+			log.debug("Logging into JIRA as " + jiraUser);
 			String loginToken = jiraApi.login(jiraUser, jiraPassword);
-			log.debug("Logged in JIRA");
+			log.debug("Logged into JIRA");
 			try {
 				doExecute(jiraApi, loginToken);
 			} finally {

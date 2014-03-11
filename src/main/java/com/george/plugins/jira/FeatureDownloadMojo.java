@@ -97,6 +97,7 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 		StringBuilder fieldNames = new StringBuilder("issuetype,created,updated,project," +	// These fields are required by the JSON parser
 													"summary,labels,components,issuelinks,parent,subtasks,status,resolution,reporter,assignee");
 		if( customFields != null ) {
+			getLog().debug("Looking up field IDs for custom fields: " + customFields);
 			HashMap<String, String> fieldIdsByName = jiraApi.getFieldIdsByName(loginToken);
 			for( String customFieldName : customFields.split(",") ) {
 				appendCustomField( customFieldName, fieldNames, fieldIdsByName );
@@ -222,10 +223,12 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	 * @throws RemoteException 
 	 */
 	private List<JiraIssue> getIssues( String loginToken, String issueType, String labels, String components, String fieldNames ) throws RemoteException {
+		getLog().info("Loading " + issueType + " issues from JIRA project " + jiraProjectKey);
+		getLog().info("  for labels: " + labels + ", components: " + components + ", fieldNames: " + fieldNames);
 		StringBuilder jql = new StringBuilder("project=").append(jiraProjectKey);
 		appendJqlFieldFilter( jql, "issuetype", issueType );
 		appendJqlFieldFilter( jql, "labels", labels );
-		appendJqlFieldFilter( jql, "components", components );
+		appendJqlFieldFilter( jql, "component", components );
 			
 		return jiraApi.getIssuesFromJqlSearch(loginToken, jql.toString(), fieldNames, MAX_RESULTS);
 	}
