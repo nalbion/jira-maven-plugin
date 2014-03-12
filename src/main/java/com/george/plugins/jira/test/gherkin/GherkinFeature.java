@@ -1,4 +1,4 @@
-package com.george.plugins.jira.bdd;
+package com.george.plugins.jira.test.gherkin;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -14,8 +14,10 @@ import java.util.Map;
 import com.atlassian.jira.rest.client.api.domain.Issue;
 import com.george.plugins.jira.api.JiraIssue;
 import com.george.plugins.jira.api.JiraIssueSummary;
+import com.george.plugins.jira.test.TestScenario;
+import com.george.plugins.jira.test.Story;
 
-public class Feature extends Taggable {
+public class GherkinFeature extends Taggable implements Story {
 	private String title;
 	private String storyFileUrl;
 	/** 
@@ -23,12 +25,12 @@ public class Feature extends Taggable {
 	 * does not include the tags 
 	 */
 	private String featureText;
-	private List<Scenario> scenarios;
+	private List<TestScenario> scenarios;
 	/** populated when we first read the {@link Issue}'s subtasks */
 	private List<String> scenarioKeys;
 	
 	
-	private Feature( JiraIssue issue ) {
+	private GherkinFeature( JiraIssue issue ) {
 		super(issue);
 		title = issue.getSummary();
 		
@@ -40,11 +42,11 @@ public class Feature extends Taggable {
 		scenarioKeys = issue.getSubtaskKeys();
 	}
 	
-	public Feature( String title ) {
+	public GherkinFeature( String title ) {
 		this.title = title;
 	}
 	
-	public Feature( String storyFileUrl, JiraIssue issue ) {
+	public GherkinFeature( String storyFileUrl, JiraIssue issue ) {
 		this(issue);
 		this.storyFileUrl = storyFileUrl;
 	}
@@ -54,7 +56,7 @@ public class Feature extends Taggable {
 	 * @param scenarioText - should start with "Scenario: " or "Scenario Outline: " or will be ignored
 	 * @param issue
 	 */
-	public Feature( String narrative, String scenarioText, JiraIssue issue ) {
+	public GherkinFeature( String narrative, String scenarioText, JiraIssue issue ) {
 		this(issue);
 		
 //		IssueField field = issue.getFieldByName("User Story");
@@ -76,9 +78,9 @@ public class Feature extends Taggable {
 		featureText = str.toString();
 	}
 
-	public void addScenario( Scenario scenario ) {
+	public void addScenario( TestScenario scenario ) {
 		if( scenarios == null ) {
-			scenarios = new LinkedList<Scenario>();
+			scenarios = new LinkedList<TestScenario>();
 		}
 		
 		scenarios.add(scenario);
@@ -88,9 +90,9 @@ public class Feature extends Taggable {
 	 * @param scenariosByKey
 	 * @param orphannedScenarios - any Scenarios that belong to this Feature will be removed from this Map 
 	 */
-	public void addScenarios( Map<String, Scenario> scenariosByKey, Map<String, Scenario> orphannedScenarios ) {
+	public void addScenarios( Map<String, TestScenario> scenariosByKey, Map<String, TestScenario> orphannedScenarios ) {
 		if( scenarios == null ) {
-			scenarios = new LinkedList<Scenario>();
+			scenarios = new LinkedList<TestScenario>();
 		}
 		
 		for( String key : scenariosByKey.keySet() ) {
@@ -114,8 +116,8 @@ public class Feature extends Taggable {
 		
 		// Add scenarios from Test issues
 		if( scenarios != null ) {
-			for( Scenario scenario : scenarios ) {
-				str.append( scenario.formatForCucumber() ).append(EOL);
+			for( TestScenario scenario : scenarios ) {
+				str.append( ((GherkinScenario)scenario).formatForCucumber() ).append(EOL);
 			}
 		}
 		

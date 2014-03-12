@@ -10,25 +10,26 @@ import java.util.List;
 
 import javax.xml.rpc.ServiceException;
 
+import org.apache.maven.plugin.MojoFailureException;
 import org.codehaus.plexus.util.StringUtils;
 
-import com.atlassian.jira.rest.client.api.domain.Issue;
 import com.george.plugins.jira.api.JiraApi;
 import com.george.plugins.jira.api.JiraIssue;
 import com.george.plugins.jira.api.JiraRestApi;
-import com.george.plugins.jira.bdd.Feature;
-import com.george.plugins.jira.bdd.Scenario;
+import com.george.plugins.jira.test.TestScenario;
+import com.george.plugins.jira.test.Story;
+import com.george.plugins.jira.test.TestGenerator;
 
 
 /**
  * Downloads Story and Test issues from JIRA and extracts BDD feature files to <code>target/generated-test-sources/cucumber</code>
  * 
- * @goal download-tests
+ * @goal generate-tests
  * @phase generate-test-sources
  * 
  * @author Nicholas Albion
  */
-public class FeatureDownloadMojo extends AbstractJiraMojo {
+public class GenerateTestsMojo extends AbstractJiraMojo {
 	private static final int MAX_RESULTS = 1000;
 	
 	/**
@@ -36,11 +37,20 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	 */
 	private String outputDirectory;
 	
+	/**
+	 * The name of the TestGenerator implementation.  
+	 * Can be a class relative to the package of TestGenerator, or the full package and class name can be provided 
+	 * 
+	 * @parameter default-value="GherkinFeatureGenerator"
+	 */
+	private String generatorClass;
+	
 	/** 
 	 * Comma-delimited list of labels to filter against
 	 * @parameter 
 	 */
 	private String labels;
+	
 	/** 
 	 * Comma-delimited list of labels to filter against
 	 * @parameter 
@@ -54,12 +64,16 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	private String customFields;
 	
 	/**
-	 * @parameter default-value="Epic,Story"
+	 * A comma-delimited list of issue types to be downloaded and parsed as stories
+	 * Example: Epic,Story
+	 * @parameter
 	 */
 	private String featureIssueTypes;
 	
 	/**
-	 * @parameter default-value="Test"
+	 * A comma-delimited list of issue types to be downloaded and parsed as stories
+	 * Example: Test
+	 * @parameter
 	 */
 	private String scenarioIssueTypes;
 		
@@ -86,7 +100,7 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 		jiraApi = new JiraRestApi( jiraURL );
 		return jiraApi;
 	}
-	
+
 	/**
 	 * Get all of the Epics and Stories that match <code>labels</code> <em>AND</em> <code>components</code>.
 	 * If either of these parameters are null they are ignored.  
@@ -94,8 +108,15 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 	 */
 	@Override
 	public void doExecute(JiraApi jiraApi, String loginToken) throws Exception {
+		@SuppressWarnings("rawtypes")
+		Class clazz = Class.forName( generatorClass.indexOf('.') > 0 ? generatorClass :
+									TestGenerator.class.getPackage().getName() + "." + generatorClass );
+		TestGenerator generator = (TestGenerator) clazz.newInstance();
+		generator.configureFromMojo( this );
+		
 		StringBuilder fieldNames = new StringBuilder("issuetype,created,updated,project," +	// These fields are required by the JSON parser
 													"summary,labels,components,issuelinks,parent,subtasks,status,resolution,reporter,assignee");
+		
 		if( customFields != null ) {
 			getLog().debug("Looking up field IDs for custom fields: " + customFields);
 			HashMap<String, String> fieldIdsByName = jiraApi.getFieldIdsByName(loginToken);
@@ -104,111 +125,105 @@ public class FeatureDownloadMojo extends AbstractJiraMojo {
 			}
 		}
 		
-		LinkedList<Feature> features = new LinkedList<Feature>();
-		HashMap<String, Scenario> scenariosByKey = new HashMap<String, Scenario>();
+		// Download and parse Jira issue and generate tests locally.
+		// A different strategy is adopted depending on which of featureIssueTypes and scenarioIssueTypes are defined. 
+		if( featureIssueTypes != null && scenarioIssueTypes != null ) {
+			generateStoriesWithFeatures( jiraApi, loginToken, fieldNames.toString(), generator );
+		} else if( featureIssueTypes != null ) {
+			generateStories( jiraApi, loginToken, fieldNames.toString(), generator );
+		} else if( scenarioIssueTypes != null ) {
+			generateTestScenarios( jiraApi, loginToken, fieldNames.toString(), generator );
+		} else {
+			throw new MojoFailureException("You must specify 'featureIssueTypes' and/or 'scenarioIssueTypes'");
+		}
+	}
+	
+	private void generateStoriesWithFeatures( JiraApi jiraApi, String loginToken, String fieldNames, TestGenerator generator ) throws RemoteException {
+		LinkedList<Story> storyFiles = new LinkedList<Story>();
+		HashMap<String, TestScenario> scenariosByKey = new HashMap<String, TestScenario>();
 		
+		// Download the Stories from Jira and parse into StoryFile objects
 		for( JiraIssue issue : getIssues( loginToken, featureIssueTypes, labels, components, fieldNames.toString() ) ) {
-			Feature feature = parseFeatureFromIssue( issue );
-			if( feature != null ) {
-				features.add( feature );
+			Story storyFile = generator.parseStory( issue );
+			if( storyFile != null ) {
+				storyFiles.add( storyFile );
 			}
 		}
 		
+		// Download the Test issues from Jira and parse into Scenario objects
 		for( JiraIssue issue : getIssues( loginToken, scenarioIssueTypes, labels, components, fieldNames.toString() ) ) {
-			Scenario scenario = parseScenarioFromIssue(issue);
+			TestScenario scenario = generator.parseScenario(issue);
 			if( scenario != null ) {
 				scenariosByKey.put( issue.getKey(), scenario );
 			}
 		}
 		
-		
 		// As we add the parsed Scenarios into the Features, we remove them from orphannedScenarios.
 		// Hopefully orphannedScenarios will be empty after this process, otherwise we will need to 
 		// Create some new Features to contain each of the individual Scenarios. 
-		HashMap<String, Scenario> orphannedScenarios = new HashMap<String, Scenario>();
+		HashMap<String, TestScenario> orphannedScenarios = new HashMap<String, TestScenario>();
 		orphannedScenarios.putAll(scenariosByKey);
 		
-		for( Feature feature : features ) {
-			feature.addScenarios( scenariosByKey, orphannedScenarios );
+		for( Story storyFile : storyFiles ) {
+			storyFile.addScenarios( scenariosByKey, orphannedScenarios );
 		}
 		
 		if( !orphannedScenarios.isEmpty() ) {
-			for( Scenario scenario : orphannedScenarios.values() ) {
-				Feature feature = new Feature( null, null );
-				feature.addScenario(scenario);
-				features.add( feature );
+			for( TestScenario scenario : orphannedScenarios.values() ) {
+				storyFiles.add( generator.singleScenarioStory(scenario) );
 			}
 		}
 		
 		// Now write the Feature files
-		for( Feature feature : features ) {
+		for( Story storyFile : storyFiles ) {
 			try {
-				feature.writeToFile(outputDirectory);
+				storyFile.writeToFile(outputDirectory);
 			} catch (IOException e) {
 				getLog().error("Failed to write feature to file", e);
 			}
 		}
 	}
 	
-	
-	/**
-	 * Supports BDD Features defined directly in the Story's "User Story" and "Acceptance Criteria" fields
-	 * OR at a URL provided in the <code>featureFileUrlFieldName</code> field.
-	 * 
-	 * @param issue
-	 * @return
-	 */
-	private Feature parseFeatureFromIssue( JiraIssue issue ) {
-		if( featureFileUrlFieldName != null ) {
-			String storyFileUrl = issue.getFieldByName(featureFileUrlFieldName);
-			if( storyFileUrl != null && !storyFileUrl.isEmpty() ) {
-				return new Feature(storyFileUrl, issue);
+	private void generateStories( JiraApi jiraApi, String loginToken, String fieldNames, TestGenerator generator ) throws RemoteException {
+		for( JiraIssue issue : getIssues( loginToken, featureIssueTypes, labels, components, fieldNames.toString() ) ) {
+			Story storyFile = generator.parseStory( issue );
+			if( storyFile != null ) {
+				try {
+					storyFile.writeToFile(outputDirectory);
+				} catch (IOException e) {
+					getLog().error("Failed to write feature to file", e);
+				}
 			}
 		}
-		
-		String narrative = null;
-		String acceptanceCriteria = null;
-				
-		String userStory = issue.getFieldByName(narrativeFieldName);
-		if( userStory != null && !userStory.isEmpty() ) {
-			narrative = userStory;
-		}
-		
-		acceptanceCriteria = issue.getFieldByName(scenarioFieldName);
-		if( acceptanceCriteria != null && acceptanceCriteria.isEmpty() ) {
-			acceptanceCriteria = null;
-		}
-		
-		
-		if( narrative != null || acceptanceCriteria != null ) {
-			return new Feature(narrative, acceptanceCriteria, issue);
-		}
-		
-		// Didn't find anything
-		return null;
 	}
 	
-	/**
-	 * In order to parse a {@link Scenario} from an {@link Issue} we need to find the <code>Given, When, Then</code>
-	 * statements.
-	 * 
-	 * @param issue
-	 * @return
-	 */
-	private Scenario parseScenarioFromIssue( JiraIssue issue ) {
-		String description = issue.getDescription();
-		if( description == null ) {
-			description = issue.getFieldByName("Description");
-		}
-		if( description != null ) {
-			description = description.trim();
-			if( description.startsWith("Scenario") || description.startsWith("Given ") || description.startsWith("When ") ) {
-				return new Scenario(description, issue);
+	private void generateTestScenarios( JiraApi jiraApi, String loginToken, String fieldNames, TestGenerator generator ) throws RemoteException {
+		for( JiraIssue issue : getIssues( loginToken, scenarioIssueTypes, labels, components, fieldNames.toString() ) ) {
+			TestScenario scenario = generator.parseScenario(issue);
+		
+			if( scenario != null ) {
+				try {
+					scenario.writeToFile(outputDirectory);
+				} catch (IOException e) {
+					getLog().error("Failed to write test scenario to file", e);
+				}
 			}
 		}
-		return null;
 	}
 	
+	
+	public String getFeatureFileUrlFieldName() {
+		return featureFileUrlFieldName;
+	}
+
+	public String getNarrativeFieldName() {
+		return narrativeFieldName;
+	}
+
+	public String getScenarioFieldName() {
+		return scenarioFieldName;
+	}
+		
 	/**
 	 * Get all of the issues that match <code>issueType</code>, <code>labels</code> <em>AND</em> <code>components</code>.
 	 * If any of these parameters are null they are ignored.  

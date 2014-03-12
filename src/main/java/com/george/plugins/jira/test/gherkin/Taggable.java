@@ -1,4 +1,4 @@
-package com.george.plugins.jira.bdd;
+package com.george.plugins.jira.test.gherkin;
 
 import java.util.LinkedList;
 import java.util.List;

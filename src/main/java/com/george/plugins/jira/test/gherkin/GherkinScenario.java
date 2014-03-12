@@ -1,12 +1,16 @@
-package com.george.plugins.jira.bdd;
+package com.george.plugins.jira.test.gherkin;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import com.george.plugins.jira.api.JiraIssue;
 
 
-public class Scenario extends Taggable {
+public class GherkinScenario extends Taggable implements com.george.plugins.jira.test.TestScenario {
 	private static Pattern TITLE_PATTERN = Pattern.compile("(Scenario|Scenario Outline):\\s*([^\\r\\n]+)[\\r\\n]+(.*)", Pattern.DOTALL | Pattern.MULTILINE);
 	
 	/** "Scenario" or "Scenario Outline" */
@@ -14,7 +18,7 @@ public class Scenario extends Taggable {
 	private String title;
 	private String body;
 	
-	public Scenario( String description, JiraIssue issue ) {
+	public GherkinScenario( String description, JiraIssue issue ) {
 		super(issue);
 		
 		description = description.trim();
@@ -47,5 +51,28 @@ public class Scenario extends Taggable {
 		}
 		
 		return str.toString();
+	}
+	
+	/**
+	 * @param directory - eg: "target/generated-test-sources/cucumber"
+	 * @throws IOException 
+	 */
+	public void writeToFile( String directory ) throws IOException {
+//		throw new IllegalAccessError("Scenarios must belong to a Feature - you must define featureIssueTypes in the plugin configuration");
+		BufferedWriter out = null;
+		try {
+			new File( directory ).mkdirs();
+			File file = new File( directory, title.replaceAll("[^\\w\\d]", "_") + ".feature" );
+			out = new BufferedWriter( new FileWriter(file) );
+			
+			out.write( "Feature: " + title );
+			out.write( EOL );
+			out.write( EOL );
+			out.write( formatForCucumber() );
+		} finally {
+			if( out != null ) {
+				out.close();
+			}
+		}
 	}
 }
