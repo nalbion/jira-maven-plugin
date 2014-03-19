@@ -107,10 +107,16 @@ Place it on your pom.xml:
 generate-tests
 =====================
 
-Downloads Story and Test issues from JIRA and extracts BDD feature files.
+Downloads Story and Test issues from JIRA and extracts BDD feature files.  
+
+Can be used with the [cucumber-jira](https://github.com/nalbion/cucumber-jira) 
+formatter/reporter which can update and transition JIRA issues.
+
 Currently the mojo is only capable of generating Gherkin feature files (for Cucumber)
 but has been designed so that it can be extended to generate feature/story files for JBehave 
 and other testing frameworks.
+
+
  
   - outputDirectory - defaults to target/generated-test-sources/cucumber
   - generatorClass - The name of the TestGenerator implementation.  
