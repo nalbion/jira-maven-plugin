@@ -17,9 +17,11 @@ import com.atlassian.jira.rest.client.api.domain.BasicComponent;
 import com.atlassian.jira.rest.client.api.domain.Field;
 import com.atlassian.jira.rest.client.api.domain.Issue;
 import com.atlassian.jira.rest.client.api.domain.IssueField;
+import com.atlassian.jira.rest.client.api.domain.IssueLink;
 import com.atlassian.jira.rest.client.api.domain.SearchResult;
 import com.atlassian.jira.rest.client.api.domain.Subtask;
 import com.atlassian.jira.rest.client.api.domain.Version;
+import com.atlassian.jira.rest.client.api.domain.IssueLinkType.Direction;
 import com.atlassian.jira.rest.client.api.domain.input.VersionInput;
 import com.atlassian.jira.rest.client.internal.async.AsynchronousJiraRestClientFactory;
 
@@ -157,6 +159,27 @@ public class JiraRestApi implements JiraApi {
 					}
 					
 					jiraIssue.setSubtaskKeys( scenarioKeys );
+				}
+			}
+			
+			// Extract the key of all linked issues
+			Iterable<IssueLink> issueLinks = issue.getIssueLinks();
+			if( issueLinks != null ) {
+				Iterator<IssueLink> itr = issueLinks.iterator();
+				if( itr != null ) {
+					
+					for( IssueLink issueLink : issueLinks ) {
+						if( Direction.OUTBOUND == issueLink.getIssueLinkType().getDirection() ) {
+							issueLink.getIssueLinkType().getDescription();
+							
+							
+							
+							
+						}
+						
+						
+					}
+					
 				}
 			}
 			

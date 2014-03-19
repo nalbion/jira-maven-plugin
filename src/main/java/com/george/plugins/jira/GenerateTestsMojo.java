@@ -52,7 +52,7 @@ public class GenerateTestsMojo extends AbstractJiraMojo {
 	private String labels;
 	
 	/** 
-	 * Comma-delimited list of labels to filter against
+	 * Comma-delimited list of components to filter against
 	 * @parameter 
 	 */
 	private String components;

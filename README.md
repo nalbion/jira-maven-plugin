@@ -104,3 +104,53 @@ Place it on your pom.xml:
 	    </executions>
     </plugin>
 
+generate-tests
+=====================
+
+Downloads Story and Test issues from JIRA and extracts BDD feature files.
+Currently the mojo is only capable of generating Gherkin feature files (for Cucumber)
+but has been designed so that it can be extended to generate feature/story files for JBehave 
+and other testing frameworks.
+ 
+  - outputDirectory - defaults to target/generated-test-sources/cucumber
+  - generatorClass - The name of the TestGenerator implementation.  
+	 			Can be a class relative to the package of TestGenerator, or the full package and class name can be provided.
+	 			Defaults to "GherkinFeatureGenerator"
+  - labels - Comma-delimited list of labels to filter against
+  - components - Comma-delimited list of components to filter against		
+  - customFields - Optional comma-delimited list of custom fields to retrieve for each issue
+  - featureIssueTypes - A comma-delimited list of issue types to be downloaded and parsed as stories
+	 				Example: Epic,Story
+  - scenarioIssueTypes - A comma-delimited list of issue types to be downloaded and parsed as stories
+  					Example: Test
+  - featureFileUrlFieldName - Use this if you have a custom field that provides a URL to a BDD feature file (eg Git web UI)
+  - narrativeFieldName - The name of the field that holds the BDD narrative (As a <ROLE> I want <FEATURE> So that <BENEFIT>)
+  					Default: "User Story"
+  - scenarioFieldName - The name of the field that holds the BDD Scenario (Scenario: ... Given... When... Then...)
+  					Default: "Acceptance Criteria"
+
+
+Example configuration:
+
+    <plugin>
+        <groupId>com.george.app</groupId>
+        <artifactId>jira-maven-plugin</artifactId>
+        <version>1.3-SNAPSHOT</version>
+        <configuration>
+            <settingsKey>jira</settingsKey>
+            <featureIssueTypes>Epic,Story</featureIssueTypes>
+            <scenarioIssueTypes>Test</scenarioIssueTypes>
+            <customFields>Epic Name,User Story,Acceptance Criteria</customFields>
+            <narrativeFieldName>User Story</narrativeFieldName>
+            <components>MyComponent</components>
+            <labels>MyLabel</labels>
+        </configuration>
+        <executions>
+		    <execution>
+			    <phase>generate-test-sources</phase>
+			    <goals>
+				    <goal>generate-tests</goal>
+			    </goals>
+		    </execution>
+	    </executions>
+    </plugin>

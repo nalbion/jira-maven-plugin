@@ -24,10 +24,10 @@ public abstract class Taggable {
 		metaTags = new LinkedList<String>();
 		componentAndLabelTags = new LinkedList<String>();
 		
-		tags.add( "@" + issue.getKey() );
-		tags.add( "@" + ensureValidTag( issue.getStatus() ) );	// Open/Closed etc
-		if( issue.getResolution() != null ) {
-			tags.add( "@" + ensureValidTag( issue.getResolution() ) );
+		tags.add( "@issue_" + issue.getKey() );
+		tags.add( "@status_" + ensureValidTag( issue.getStatus() ) );	// Open/Resolved/Closed etc
+		if( issue.getResolution() != null ) {							// Unresolved/Fixed/Wont_Fix etc
+			tags.add( "@resolution_" + ensureValidTag( issue.getResolution() ) );
 		}
 		
 		for( String component : issue.getComponents() ) {
@@ -38,6 +38,8 @@ public abstract class Taggable {
 			componentAndLabelTags.add( "@" + label );
 		}
 		
+//		issue.getFieldByName("issuelinks");
+		
 		metaTags.add( "@type_" + issue.getIssueType() );		// This might be useful for the reporter
 		metaTags.add( "@reporter_" + issue.getReporter() );
 		metaTags.add( "@assignee_" + issue.getAssignee() );
@@ -46,7 +48,7 @@ public abstract class Taggable {
 	public abstract String formatForCucumber();
 	
 	protected String ensureValidTag( String tag ) {
-		return tag.replaceAll("[^\\w\\d]+", "_") ;
+		return tag.replaceAll("'", "").replaceAll("[^\\w\\d]+", "_") ;
 	}
 	
 	protected StringBuilder getTags( String indent ) {
